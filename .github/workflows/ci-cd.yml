@@ -17,7 +17,8 @@ jobs:
     runs-on: self-hosted          # <-- läuft auf deinem eigenen Rechner
     defaults:
       run:
-        shell: powershell
+        # Bypass nur für diesen Prozess – Windows blockiert sonst .ps1-Skripte (ExecutionPolicy Restricted)
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -49,7 +50,8 @@ jobs:
     runs-on: self-hosted
     defaults:
       run:
-        shell: powershell
+        # Bypass nur für diesen Prozess – Windows blockiert sonst .ps1-Skripte (ExecutionPolicy Restricted)
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
