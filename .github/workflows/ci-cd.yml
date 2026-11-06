@@ -1,0 +1,73 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: cicd-demo
+  CONTAINER_NAME: cicd-demo-app
+
+jobs:
+  build-and-test:
+    name: Build & Test (CI)
+    runs-on: self-hosted          # <-- läuft auf deinem eigenen Rechner
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show runner info
+        run: |
+          Write-Host "Runner name : $env:RUNNER_NAME"
+          Write-Host "Runner OS   : $env:RUNNER_OS"
+          Write-Host "Machine     : $env:COMPUTERNAME"
+          Write-Host "User        : $env:USERNAME"
+          python --version
+
+      - name: Create venv & install dependencies
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\pip.exe install -r requirements-dev.txt
+
+      - name: Lint (flake8)
+        run: .\.venv\Scripts\flake8.exe app tests
+
+      - name: Run tests (pytest)
+        run: .\.venv\Scripts\pytest.exe -v
+
+  deploy:
+    name: Docker Build & Deploy (CD)
+    needs: build-and-test
+    if: github.event_name != 'pull_request'
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t "${env:IMAGE_NAME}:${env:GITHUB_SHA}" -t "${env:IMAGE_NAME}:latest" .
+
+      - name: Stop old container
+        run: |
+          $old = docker ps -aq -f "name=$env:CONTAINER_NAME"
+          if ($old) { docker rm -f $env:CONTAINER_NAME } else { Write-Host "No old container" }
+
+      - name: Run new container
+        run: docker run -d --name $env:CONTAINER_NAME -p 5000:5000 "${env:IMAGE_NAME}:latest"
+
+      - name: Smoke test
+        run: |
+          Start-Sleep -Seconds 5
+          $res = Invoke-RestMethod -Uri http://localhost:5000/health
+          Write-Host "Health response: $($res | ConvertTo-Json)"
+          if ($res.status -ne 'healthy') { throw "Smoke test failed" }
