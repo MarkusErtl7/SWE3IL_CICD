@@ -24,8 +24,12 @@ The deploy job depends on the CI job (`needs: build-and-test`) and only runs if 
 1. Created a GitHub account and a public repository `SWE3IL_CICD`.
 2. Wrote the Flask app, tests, Dockerfile and workflow file and pushed them to `main`.
 3. Registered a self-hosted runner: *Settings → Actions → Runners → New self-hosted runner* (Windows x64), downloaded the runner package, ran `config.cmd` with the registration token and started it with `run.cmd`.
-   > 📸 Screenshot: runner terminal showing "Connected to GitHub / Listening for Jobs"
-   > 📸 Screenshot: Settings → Runners showing the runner as *Idle*
+   The runner is started from PowerShell with `cd C:\Users\Ertlz\actions-runner` and `.\run.cmd`.
+   It connects to GitHub and waits for jobs. In the repository under *Settings → Actions → Runners*
+   the runner `ADMIN` (labels `self-hosted`, `Windows`, `X64`) is listed with status **Idle**.
+
+   ![Runner ADMIN with status Idle in GitHub and the PowerShell window running run.cmd](docs/screenshots/01-runner-idle-and-run-cmd.png)
+   *Figure 1: Self-hosted runner registered in GitHub (Idle) and started locally with `run.cmd` ("Connected to GitHub", "Listening for Jobs").*
 4. Started Docker Desktop and verified Python is on the PATH.
 5. Triggered the pipeline (push / *Run workflow*).
    > 📸 Screenshot: runner terminal showing "Running job … Succeeded"
@@ -36,6 +40,7 @@ The deploy job depends on the CI job (`needs: build-and-test`) and only runs if 
 
 ## 4. Challenges and solutions
 *(keep the ones that actually happened, add your own)*
+- **First run failed at the first PowerShell step ("Process completed with exit code 1")** – the runner writes every `run:` step to a temporary `.ps1` file and runs it. Windows' default ExecutionPolicy (*Restricted*) blocks `.ps1` scripts, so the first run failed while the Node-based checkout step still worked. Fix: a custom shell in the workflow, `powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"`, which only applies to the pipeline process and does not change the system-wide policy. The second run succeeded.
 - **Job stuck on "Waiting for a runner"** – the runner was not running yet; starting `run.cmd` picked up the queued job.
 - **Shell differences on Windows** – GitHub's examples use bash; on a Windows runner steps run in PowerShell, so the commands were written for PowerShell (`shell: powershell`, `.\.venv\Scripts\...`).
 - **Docker daemon not reachable** – the deploy job failed with `failed to connect to the docker API` until Docker Desktop was started.
