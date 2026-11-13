@@ -32,8 +32,13 @@ The deploy job depends on the CI job (`needs: build-and-test`) and only runs if 
    *Figure 1: Self-hosted runner registered in GitHub (Idle) and started locally with `run.cmd` ("Connected to GitHub", "Listening for Jobs").*
 4. Started Docker Desktop and verified Python is on the PATH.
 5. Triggered the pipeline (push / *Run workflow*).
-   > 📸 Screenshot: runner terminal showing "Running job … Succeeded"
-   > 📸 Screenshot: Actions tab with a green run (both jobs)
+   As soon as a job is picked up, the runner page in GitHub shows it as *Active Job* on `ADMIN`
+   (status *In progress*), i.e. the job is executed on my local machine.
+
+   ![Runner ADMIN in GitHub with active job "CI/CD Pipeline / Build & Test (CI)" in progress](docs/screenshots/05-runner-active-job.png)
+   *Figure 2: Runner `ADMIN` (Windows x64, labels `self-hosted`, `Windows`, `X64`) currently executing the CI job.*
+
+   The successful runs are listed in the Actions tab (see Figure 6).
    > 📸 Screenshot: job log step "Show runner info" with my computer name
 6. Verified the deployment: `docker ps` shows `cicd-demo-app`, http://localhost:5000 returns the JSON response.
    > 📸 Screenshot: browser / `docker ps`
@@ -43,12 +48,32 @@ The deploy job depends on the CI job (`needs: build-and-test`) and only runs if 
    (`assert add(2, 3) == 6` instead of `== 5`) and pushed the change.
 
    ![test_main.py with the intentionally wrong assertion add(2, 3) == 6](docs/screenshots/02-failing-test.png)
-   *Figure 2: Intentionally broken unit test in `tests/test_main.py` (line 5).*
+   *Figure 3: Intentionally broken unit test in `tests/test_main.py` (line 5).*
 
-   Expected result: the *Run tests (pytest)* step fails, the CI job turns red and the
-   *Docker Build & Deploy* job is skipped because of `needs: build-and-test`. The previously
-   deployed container keeps running unchanged. Afterwards the test was reverted and the pipeline was green again.
-   > 📸 Screenshot: Actions tab with the failed run (CI red, Deploy skipped)
+   Result: the *Run tests (pytest)* step failed, the CI job turned red and the
+   *Docker Build & Deploy* job was skipped because of `needs: build-and-test`. The previously
+   deployed container kept running unchanged.
+
+   The runner output on my machine shows both cases: the run for the previous, correct commit
+   succeeded, the run for the broken commit failed. The deploy job at the end belongs to the earlier,
+   correct run: a single self-hosted runner executes only one job at a time, so that deploy job
+   waited in the queue until the CI job of the broken commit had finished.
+
+   ![Runner terminal: Build & Test succeeded, then Build & Test failed, then Docker Build & Deploy](docs/screenshots/03-runner-succeeded-and-failed.png)
+   *Figure 4: Local runner output – CI succeeded for the correct commit and failed for the broken one.*
+
+   GitHub also sent an e-mail notification about the failed run: *Build & Test (CI)* failed,
+   *Docker Build & Deploy (CD)* was skipped.
+
+   ![GitHub e-mail: CI/CD Pipeline – Some jobs were not successful; Build & Test failed, Deploy skipped](docs/screenshots/04-failure-email.png)
+   *Figure 5: E-mail notification from GitHub – the broken code was stopped before deployment.*
+
+   Afterwards the test was reverted to `== 5` (commit *good Test*) and pushed. The Actions overview
+   shows the result: run #4 (*break test*) failed, run #5 (*good Test*) succeeded, so the latest
+   run on `main` is a successful CI/CD run.
+
+   ![GitHub Actions overview: run #5 "good Test" succeeded, run #4 "break test" failed](docs/screenshots/06-actions-runs-overview.png)
+   *Figure 6: Actions overview – the broken commit was stopped (#4), the fixed commit passed the whole pipeline (#5).*
 
 ## 4. Challenges and solutions
 *(keep the ones that actually happened, add your own)*
