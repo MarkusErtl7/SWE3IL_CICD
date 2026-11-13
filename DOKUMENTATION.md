@@ -38,6 +38,18 @@ The deploy job depends on the CI job (`needs: build-and-test`) and only runs if 
 6. Verified the deployment: `docker ps` shows `cicd-demo-app`, http://localhost:5000 returns the JSON response.
    > 📸 Screenshot: browser / `docker ps`
 
+7. Tested the failure case: to check that the pipeline really stops broken code, I changed
+   `test_add` in `tests/test_main.py` on purpose so that it expects a wrong result
+   (`assert add(2, 3) == 6` instead of `== 5`) and pushed the change.
+
+   ![test_main.py with the intentionally wrong assertion add(2, 3) == 6](docs/screenshots/02-failing-test.png)
+   *Figure 2: Intentionally broken unit test in `tests/test_main.py` (line 5).*
+
+   Expected result: the *Run tests (pytest)* step fails, the CI job turns red and the
+   *Docker Build & Deploy* job is skipped because of `needs: build-and-test`. The previously
+   deployed container keeps running unchanged. Afterwards the test was reverted and the pipeline was green again.
+   > 📸 Screenshot: Actions tab with the failed run (CI red, Deploy skipped)
+
 ## 4. Challenges and solutions
 *(keep the ones that actually happened, add your own)*
 - **First run failed at the first PowerShell step ("Process completed with exit code 1")** – the runner writes every `run:` step to a temporary `.ps1` file and runs it. Windows' default ExecutionPolicy (*Restricted*) blocks `.ps1` scripts, so the first run failed while the Node-based checkout step still worked. Fix: a custom shell in the workflow, `powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"`, which only applies to the pipeline process and does not change the system-wide policy. The second run succeeded.
